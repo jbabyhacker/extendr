@@ -43,11 +43,10 @@ pub fn start_r() {
     START_R.call_once(|| {
         unsafe {
             // TODO: get the default home dir from libR-sys.
-            if cfg!(unix) {
-                if std::env::var("R_HOME").is_err() {
+            if cfg!(unix) &&   std::env::var("R_HOME").is_err() {
                     // env! gets the build-time R_HOME stored by libR-sys
                     std::env::set_var("R_HOME", env!("R_HOME"));
-                }
+
             }
 
             // Due to Rf_initEmbeddedR using __libc_stack_end

@@ -7,6 +7,8 @@
 //! * Any function that can break the protection mechanism is unsafe.
 //! * Users should be able to do almost everything without using libR_sys.
 //! * The interface should be friendly to R users without Rust experience.
+#![allow(clippy::unit_arg)]
+#![allow(clippy::missing_safety_doc)]
 
 use libR_sys::*;
 use std::os::raw;
@@ -213,6 +215,11 @@ impl Robj {
         unsafe { Rf_xlength(self.get()) as usize }
     }
 
+    /// Get whether or not the object is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get a read-only reference to the content of an integer or logical vector.
     pub fn as_i32_slice(&self) -> Option<&[i32]> {
         self.as_typed_slice()
@@ -226,7 +233,7 @@ impl Robj {
     /// Get a Vec<i32> copied from the object.
     pub fn as_integer_vector(&self) -> Option<Vec<i32>> {
         if let Some(value) = self.as_integer_slice() {
-            Some(value.iter().cloned().collect::<Vec<_>>())
+            Some(value.to_vec())
         } else {
             None
         }
@@ -259,7 +266,7 @@ impl Robj {
     /// Get a Vec<f64> copied from the object.
     pub fn as_numeric_vector(&self) -> Option<Vec<f64>> {
         if let Some(value) = self.as_numeric_slice() {
-            Some(value.iter().cloned().collect::<Vec<_>>())
+            Some(value.to_vec())
         } else {
             None
         }
@@ -335,7 +342,7 @@ impl Robj {
         unsafe {
             match self.sexptype() {
                 STRSXP => {
-                    if self.len() == 0 {
+                    if self.is_empty() {
                         None
                     } else {
                         Some(to_str(R_CHAR(STRING_ELT(self.get(), 0)) as *const u8))
@@ -451,10 +458,7 @@ impl Robj {
     /// Return true if the object is owned by this wrapper.
     /// If so, it will be released when the wrapper drops.
     pub fn is_owned(&self) -> bool {
-        match self {
-            Robj::Owned(_) => true,
-            _ => false,
-        }
+        matches!(self, Robj::Owned(_))
     }
 }
 
@@ -1621,7 +1625,7 @@ impl Iterator for VecIter {
         let i = self.i;
         self.i += 1;
         if i >= self.len {
-            return None;
+            None
         } else {
             Some(Robj::from(unsafe { VECTOR_ELT(self.vector, i as isize) }))
         }
@@ -1652,6 +1656,12 @@ pub struct ListIter {
 impl ListIter {
     /// Make an empty list iterator.
     pub fn new() -> Self {
+        ListIter::default()
+    }
+}
+
+impl Default for ListIter {
+    fn default() -> Self {
         unsafe { Self { list_elem: R_NilValue } }
     }
 }
@@ -1691,6 +1701,12 @@ pub struct StrIter {
 impl StrIter {
     /// Make an empty str iterator.
     pub fn new() -> Self {
+        StrIter::default()
+    }
+}
+
+impl Default for StrIter {
+    fn default() -> Self {
         unsafe { Self { vector: R_NilValue, i: 0, len: 0 } }
     }
 }
@@ -1706,7 +1722,7 @@ impl Iterator for StrIter {
         let i = self.i;
         self.i += 1;
         if i >= self.len {
-            return None;
+            None
         } else {
             unsafe {
                 let sexp = STRING_ELT(self.vector, i as isize);

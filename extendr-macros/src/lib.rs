@@ -115,10 +115,7 @@ fn generate_wrappers(_opts: &ExtendrOptions, wrappers: &mut Vec<ItemFn>, prefix:
     let wrap_name_str = format!("{}", wrap_name);
 
     let inputs = &sig.inputs;
-    let has_self = match inputs.iter().next() {
-        Some(FnArg::Receiver(_)) => true,
-        _ => false
-    };
+    let has_self = matches!(inputs.iter().next(), Some(FnArg::Receiver(_)));
 
     let call_name = if has_self {
         let is_mut = match inputs.iter().next() {
@@ -273,8 +270,8 @@ fn extendr_impl(mut item_impl: ItemImpl) -> TokenStream {
 pub fn extendr(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as syn::AttributeArgs);
     match parse_macro_input!(item as Item) {
-        Item::Fn(func) => return extendr_function(args, func),
-        Item::Impl(item_impl) => return extendr_impl(item_impl),
+        Item::Fn(func) => extendr_function(args, func),
+        Item::Impl(item_impl) => extendr_impl(item_impl),
         other_item => {
             TokenStream::from(quote! {#other_item})
         }
@@ -299,13 +296,13 @@ impl syn::parse::Parse for Module {
         while !input.is_empty() {
             if let Ok(kmod) = input.parse::<Token![mod]>() {
                 let name : Ident = input.parse()?;
-                if !res.modname.is_none() {
+                if res.modname.is_some() {
                     return Err(syn::Error::new(kmod.span(), "only one mod allowed"));
                 }
                 res.modname = Some(name);
-            } else if let Ok(_) = input.parse::<Token![fn]>() {
+            } else if input.parse::<Token![fn]>().is_ok() {
                 res.fnnames.push(input.parse()?);
-            } else if let Ok(_) = input.parse::<Token![impl]>() {
+            } else if input.parse::<Token![impl]>().is_ok() {
                 res.implnames.push(input.parse()?);
             } else {
                 return Err(syn::Error::new(input.span(), "expected mod, fn or impl"));

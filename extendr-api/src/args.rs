@@ -38,6 +38,9 @@ macro_rules! args {
     };
 }
 
+/// # Safety
+///
+///
 pub unsafe fn append_with_name(tail: SEXP, obj: Robj, name: &str) -> SEXP {
     let mut name = Vec::from(name.as_bytes());
     name.push(0);
